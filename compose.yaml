@@ -1,0 +1,37 @@
+services:
+  remote-control:
+    build: .
+    image: server-remote-control:latest
+    container_name: server-remote-control
+    restart: unless-stopped
+
+    # Required for nsenter to enter the host's namespaces. This is, by design,
+    # equivalent to root on the host -- the bearer token is the security boundary.
+    pid: host
+    privileged: true
+
+    volumes:
+      # The host filesystem, for the file tools.
+      - /:/host:rw
+      # The host Docker daemon, for the docker tools.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    # Published on loopback only. The reverse proxy in front of this is what
+    # terminates TLS and exposes it. Change to "8723:8723" only on a trusted network.
+    ports:
+      - "127.0.0.1:8723:8723"
+
+    env_file:
+      - .env
+
+    environment:
+      RC_PORT: "8723"
+      RC_BIND: "0.0.0.0"
+      RC_HOST_ROOT: "/host"
+      RC_EXEC_MODE: "nsenter"
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
